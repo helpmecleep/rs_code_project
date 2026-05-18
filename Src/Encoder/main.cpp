@@ -24,8 +24,8 @@ int main() {
     std::cout << std::endl;
 
     // Verify: codeword mod g should be all zeros
-    std::vector<uint32_t> check = divideGFPoly(m, codeword, g);
-    std::cout << "Remainder (should be all zeros): ";
+    std::vector<uint32_t> check = divideGFPoly(m, codeword, g).remainder;
+    std::cout << "Remainder: ";
     for (auto c : check) std::cout << c << " ";
     std::cout << std::endl;
 }
@@ -59,7 +59,7 @@ std::vector<uint32_t> generateCode(int m, int t, const std::vector<uint32_t>& me
         shiftedMessage[i + 2*t] = message[i]; // shift to high-degree end
     }
     // Calculate the remainder of the division of the shifted message by the generator polynomial
-    std::vector<uint32_t> remainder = divideGFPoly(m, shiftedMessage, generator);
+    std::vector<uint32_t> remainder = divideGFPoly(m, shiftedMessage, generator).remainder;
     remainder.resize(2*t, 0U);
     // The codeword is the shifted message plus the remainder
     std::vector<uint32_t> codeword = shiftedMessage;
