@@ -7,13 +7,13 @@
 #include "gfOps.h"
 
 
-struct GCDResult {
+struct GCDStruct {
     std::vector<uint32_t> gcd;
     std::vector<uint32_t> x;
     std::vector<uint32_t> y;
 };
 
-struct DivResult {
+struct DivisionStruct {
     std::vector<uint32_t> quotient;
     std::vector<uint32_t> remainder;
 };
@@ -67,7 +67,7 @@ std::vector<uint32_t> multiplyGFPoly(int m, const std::vector<uint32_t>& multipl
 }
 
 
-DivResult divideGFPoly(int m, const std::vector<uint32_t>& dividend, const std::vector<uint32_t>& divisor) {
+DivisionStruct divideGFPoly(int m, const std::vector<uint32_t>& dividend, const std::vector<uint32_t>& divisor) {
     if (divisor.empty() || (divisor.size() == 1 && divisor[0] == 0U)) {
         throw std::invalid_argument("Divisor cannot be zero polynomial");
     }
@@ -86,7 +86,9 @@ DivResult divideGFPoly(int m, const std::vector<uint32_t>& dividend, const std::
             degRemainder--;
         }
     }
-    // trim quotient trailing zeros
+    // trim remainder
+    remainder.resize(degRemainder + 1);
+    // trim quotient
     int degQuotient = quotient.size() - 1;
     while (degQuotient > 0 && quotient[degQuotient] == 0U) {
         degQuotient--;
@@ -96,24 +98,26 @@ DivResult divideGFPoly(int m, const std::vector<uint32_t>& dividend, const std::
 }
 
 
-
 // retreieved from https://stackoverflow.com/a/32241043, modified to work for RS decoding
-GCDResult extendedGCDPoly(const int m, const int t, std::vector<uint32_t> a, std::vector<uint32_t> b) {
-    if (b.empty() || (b.size() == 1 && b[0] == 0U)) 
+GCDStruct extendedGCDPoly(const int m, const int t, std::vector<uint32_t> a, std::vector<uint32_t> b) {
+    if (b.empty() || (b.size() == 1 && b[0] == 0U))
         return {a, {static_cast<uint32_t>(retrieveGFElement(m, 0))}, {0U}};
     
-    DivResult divResult = divideGFPoly(m, a, b);
+    if ((int)b.size() - 1 < t)
+        return {b, {0U}, {static_cast<uint32_t>(retrieveGFElement(m, 0))}};
+
+    DivisionStruct divResult = divideGFPoly(m, a, b);
     std::vector<uint32_t> quotient = divResult.quotient;
     std::vector<uint32_t> remainder = divResult.remainder;
-    
-    GCDResult rec = extendedGCDPoly(m, t, b, remainder);
-    
+    GCDStruct rec = extendedGCDPoly(m, t, b, remainder);
+
     std::vector<uint32_t> x = rec.y;
-    
     std::vector<uint32_t> prod = multiplyGFPoly(m, quotient, rec.y);
     std::vector<uint32_t> y = rec.x;
     y.resize(std::max(y.size(), prod.size()), 0U);
-    for (size_t i = 0; i < prod.size(); i++) y[i] ^= prod[i];
-    
+    for (size_t i = 0; i < prod.size(); i++) {
+        y[i] ^= prod[i];
+    }
+
     return {rec.gcd, x, y};
 }
