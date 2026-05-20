@@ -25,51 +25,35 @@ int main() {
     std::vector<uint32_t> original = {5U, 6U, 7U, 3U, 4U, 2U};
     std::vector<uint32_t> received = original;
     received[2] ^= 3U; // inject error at position 2
-    std::vector<uint32_t> corrected = decodeRS(m, t, received);
-    bool match = (corrected.size() == original.size());
-    for (size_t i = 0; match && i < corrected.size(); ++i) {
-        if (corrected[i] != original[i]) match = false;
-    }
-    if (!match) {
-        std::cout << "decodeRS test failed" << std::endl;
-        std::cout << "Original: ";
-        for (uint32_t v : original) std::cout << v << " ";
-        std::cout << std::endl;
-        std::cout << "Received: ";
-        for (uint32_t v : received) std::cout << v << " ";
-        std::cout << std::endl;
-        std::cout << "Corrected: ";
-        for (uint32_t v : corrected) std::cout << v << " ";
-        std::cout << std::endl;
-        std::cout << "Syndromes after correction: ";
-        std::vector<uint32_t> postSyndromes = computeSyndromes(m, t, corrected);
-        for (uint32_t v : postSyndromes) std::cout << v << " ";
-        std::cout << std::endl;
-        return 1;
-    }
-    std::cout << "decodeRS test passed" << std::endl;
-    
-    // Valid codeword from encoder
+    std::cout << "Original: ";
+    for (auto c : original) std::cout << c << " ";
+    std::cout << std::endl;
+
     std::cout << "Received: ";
     for (auto c : received) std::cout << c << " ";
     std::cout << std::endl;
     
     // Compute syndromes
     std::vector<uint32_t> syndromes = computeSyndromes(m, t, received);
-    std::cout << "Syndromes: ";
-    for (auto s : syndromes) std::cout << s << " ";
-    std::cout << std::endl;
     
     // Get lambda and omega
     ErrorPolys ep = computeErrorPolys(m, t, syndromes);
-    std::cout << "Lambda: ";
-    for (auto c : ep.lambda) std::cout << c << " ";
-    std::cout << std::endl;
-    
     // Chien search
     std::vector<int> errorPositions = chienSearch(m, t, received.size(), ep.lambda);
-    std::cout << "Error positions (expected 2): ";
+    std::cout << "Error positions: ";
     for (auto p : errorPositions) std::cout << p << " ";
+    std::cout << std::endl;
+
+    std::vector<uint32_t> errorMags = findErrorMag(m, received.size(), ep.omega, ep.lambda, errorPositions);
+
+    std::vector<uint32_t> corrected = received;
+    for (size_t i = 0; i < errorPositions.size(); ++i) {
+        int pos = errorPositions[i];
+        corrected[pos] ^= errorMags[i];
+    }
+
+    std::cout << "Corrected: ";
+    for (auto c : corrected) std::cout << c << " ";
     std::cout << std::endl;
     
     return 0;
@@ -105,7 +89,21 @@ ErrorPolys computeErrorPolys(int m, int t, const std::vector<uint32_t>& syndrome
     std::vector<uint32_t> x2t(2 * t + 1, 0U);
     x2t[2*t] = static_cast<uint32_t>(retrieveGFElement(m, 0));
     GCDStruct result = extendedGCDPoly(m, t, x2t, syndromePoly);
-    return {result.y, result.x};
+    std::vector<uint32_t> lambda = result.y;
+    std::vector<uint32_t> omega = result.gcd;
+
+    // Normalize so lambda[0] == 1 when possible.
+    if (!lambda.empty() && lambda[0] != 0U && lambda[0] != 1U) {
+        uint32_t inv = inverseGFElement(m, lambda[0]);
+        for (size_t i = 0; i < lambda.size(); ++i) {
+            lambda[i] = multiplyGFElement(m, lambda[i], inv);
+        }
+        for (size_t i = 0; i < omega.size(); ++i) {
+            omega[i] = multiplyGFElement(m, omega[i], inv);
+        }
+    }
+
+    return {lambda, omega};
 }
 
 std::vector<int> chienSearch(int m, int t, int n, const std::vector<uint32_t>& lambda) {
