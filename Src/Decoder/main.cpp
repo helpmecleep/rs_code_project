@@ -14,13 +14,42 @@ struct ErrorPolys {
 std::vector<uint32_t> computeSyndromes(int m, int t, const std::vector<uint32_t>& received);
 ErrorPolys computeErrorPolys(int m, int t, const std::vector<uint32_t>& syndromes);
 std::vector<int> chienSearch (int m, int t, int n, const std::vector<uint32_t>& lambda);
+std::vector<uint32_t> findErrorMag(int m, int n,
+    const std::vector<uint32_t>& omega,const std::vector<uint32_t>& lambda,
+    const std::vector<int>& errorPositions);
+std::vector<uint32_t> decodeRS(int m, int t, const std::vector<uint32_t>& received);
 
 int main() {
     int m = 8, t = 2;
+
+    std::vector<uint32_t> original = {5U, 6U, 7U, 3U, 4U, 2U};
+    std::vector<uint32_t> received = original;
+    received[2] ^= 3U; // inject error at position 2
+    std::vector<uint32_t> corrected = decodeRS(m, t, received);
+    bool match = (corrected.size() == original.size());
+    for (size_t i = 0; match && i < corrected.size(); ++i) {
+        if (corrected[i] != original[i]) match = false;
+    }
+    if (!match) {
+        std::cout << "decodeRS test failed" << std::endl;
+        std::cout << "Original: ";
+        for (uint32_t v : original) std::cout << v << " ";
+        std::cout << std::endl;
+        std::cout << "Received: ";
+        for (uint32_t v : received) std::cout << v << " ";
+        std::cout << std::endl;
+        std::cout << "Corrected: ";
+        for (uint32_t v : corrected) std::cout << v << " ";
+        std::cout << std::endl;
+        std::cout << "Syndromes after correction: ";
+        std::vector<uint32_t> postSyndromes = computeSyndromes(m, t, corrected);
+        for (uint32_t v : postSyndromes) std::cout << v << " ";
+        std::cout << std::endl;
+        return 1;
+    }
+    std::cout << "decodeRS test passed" << std::endl;
     
     // Valid codeword from encoder
-    std::vector<uint32_t> received = {5U, 6U, 7U, 3U, 4U, 2U};
-    received[2] ^= 3U; // inject error at position 2
     std::cout << "Received: ";
     for (auto c : received) std::cout << c << " ";
     std::cout << std::endl;
@@ -69,9 +98,9 @@ std::vector<uint32_t> computeSyndromes(int m, int t, const std::vector<uint32_t>
 
 
 ErrorPolys computeErrorPolys(int m, int t, const std::vector<uint32_t>& syndromes) {
-    std::vector<uint32_t> syndromePoly(2 * t + 1, 0U);
-    for (int i = 0; i <= 2 * t; i++) {
-        syndromePoly[i + 1] = syndromes[i];
+    std::vector<uint32_t> syndromePoly(2 * t, 0U);
+    for (int i = 0; i < 2 * t; i++) {
+        syndromePoly[i] = syndromes[i];
     }
     std::vector<uint32_t> x2t(2 * t + 1, 0U);
     x2t[2*t] = static_cast<uint32_t>(retrieveGFElement(m, 0));
@@ -90,4 +119,53 @@ std::vector<int> chienSearch(int m, int t, int n, const std::vector<uint32_t>& l
         if (result == 0U) errorPositions.push_back(n - 1 - (int)i);
     }
     return errorPositions;
+}
+
+std::vector<uint32_t> findErrorMag(int m, int n,
+    const std::vector<uint32_t>& omega,const std::vector<uint32_t>& lambda,
+    const std::vector<int>& errorPositions) {
+
+    std::vector<uint32_t> errorMags(errorPositions.size(), 0U);
+    std::vector<uint32_t> lambdaDeriv = polyDerivative(lambda);
+
+    for (size_t k = 0; k < errorPositions.size(); ++k) {
+        int pos = errorPositions[k];
+        int i = (n - 1) - pos;
+        int xExp = i % (m - 1);
+        uint32_t Xinv = retrieveGFElement(m, xExp);
+
+        uint32_t omegaEval = 0U;
+        for (size_t j = 0; j < omega.size(); ++j) {
+            int exponent = (xExp * (int)j) % (m - 1);
+            omegaEval ^= multiplyGFElement(m, omega[j], retrieveGFElement(m, exponent));
+        }
+
+        uint32_t lambdaDerivEval = 0U;
+        for (size_t j = 0; j < lambdaDeriv.size(); ++j) {
+            int exponent = (xExp * (int)j) % (m - 1);
+            lambdaDerivEval ^= multiplyGFElement(m, lambdaDeriv[j], retrieveGFElement(m, exponent));
+        }
+
+        if (lambdaDerivEval == 0U) {
+            errorMags[k] = 0U;
+            continue;
+        }
+        errorMags[k] = divideGFElement(m, omegaEval, lambdaDerivEval);
+    }
+    return errorMags;
+}
+
+
+std::vector<uint32_t> decodeRS(int m, int t, const std::vector<uint32_t>& received) {
+    std::vector<uint32_t> syndromes = computeSyndromes(m, t, received);
+    ErrorPolys ep = computeErrorPolys(m, t, syndromes);
+    std::vector<int> errorPositions = chienSearch(m, t, received.size(), ep.lambda);
+    std::vector<uint32_t> errorMags = findErrorMag(m, received.size(), ep.omega, ep.lambda, errorPositions);
+
+    std::vector<uint32_t> corrected = received;
+    for (size_t i = 0; i < errorPositions.size(); ++i) {
+        int pos = errorPositions[i];
+        corrected[pos] ^= errorMags[i];
+    }
+    return corrected;
 }

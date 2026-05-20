@@ -6,13 +6,14 @@
 #include <cstdint>
 #include "gfOps.h"
 
-
+// Struct to hold results of extended GCD
 struct GCDStruct {
     std::vector<uint32_t> gcd;
     std::vector<uint32_t> x;
     std::vector<uint32_t> y;
 };
 
+// Struct to hold results of polynomial division
 struct DivisionStruct {
     std::vector<uint32_t> quotient;
     std::vector<uint32_t> remainder;
@@ -121,3 +122,13 @@ GCDStruct extendedGCDPoly(const int m, const int t, std::vector<uint32_t> a, std
 
     return {rec.gcd, x, y};
 }
+
+std::vector<uint32_t> polyDerivative(const std::vector<uint32_t>& poly) {
+    std::vector<uint32_t> derivative(poly.size(), 0U);
+    for (int i = 1; i < (int)poly.size(); ++i) {
+        if (i % 2 == 1) derivative[i - 1] = poly[i];        
+    }
+    while (derivative.size() > 1 && derivative.back() == 0U) derivative.pop_back();
+    return derivative;
+}
+
