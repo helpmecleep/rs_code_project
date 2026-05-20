@@ -19,6 +19,9 @@ struct DivisionStruct {
     std::vector<uint32_t> remainder;
 };
 
+/**
+ * This function multiplies polynomial elements within GF2^m
+ */
 uint32_t multiplyPolyElement(uint32_t multiplicand, uint32_t multiplier) {
     if (multiplicand == 0U || multiplier == 0U) return 0U;
     uint32_t product = 0U;
@@ -32,6 +35,9 @@ uint32_t multiplyPolyElement(uint32_t multiplicand, uint32_t multiplier) {
     return product;
 }
 
+/**
+ * Retreieve polynomial degree
+ */
 int polyDegree(uint32_t p) {
     int degree = 0;
     while (p >>= 1U) {
@@ -40,6 +46,10 @@ int polyDegree(uint32_t p) {
     return degree;
 }
 
+/**
+ * This function performs single polynomial division and returns the remainder.
+ * 
+ */
 uint32_t polyMod(uint32_t dividend, uint32_t divisor) {
     if (divisor == 0U) throw std::invalid_argument("Divisor cannot be zero");
     uint32_t remainder = dividend;
@@ -55,6 +65,9 @@ uint32_t polyMod(uint32_t dividend, uint32_t divisor) {
     return remainder;
 }
 
+/**
+ * This function multiplies two polynomials within GF(m) represented as vectors of coefficients.
+ */
 std::vector<uint32_t> multiplyGFPoly(int m, const std::vector<uint32_t>& multiplicand, const std::vector<uint32_t>& multiplier) {
     std::vector<uint32_t> result(multiplicand.size() + multiplier.size() - 1, 0U);
 
@@ -67,7 +80,11 @@ std::vector<uint32_t> multiplyGFPoly(int m, const std::vector<uint32_t>& multipl
     return result;
 }
 
-
+/**
+ * This function performs polynomial division over two polynomials represented as vectors of coefficients, 
+ * returning both the quotient and remainder.
+ * It uses the multiplyGFPoly and polyMod functions to perform the necessary operations within GF(m)
+ */
 DivisionStruct divideGFPoly(int m, const std::vector<uint32_t>& dividend, const std::vector<uint32_t>& divisor) {
     if (divisor.empty() || (divisor.size() == 1 && divisor[0] == 0U)) {
         throw std::invalid_argument("Divisor cannot be zero polynomial");
@@ -99,7 +116,10 @@ DivisionStruct divideGFPoly(int m, const std::vector<uint32_t>& dividend, const 
 }
 
 
-// retreieved from https://stackoverflow.com/a/32241043, modified to work for RS decoding
+/**
+ * extended GCD algorithm over GF(m) for polynomials represented as vectors of coefficients.
+ * retreieved from https://stackoverflow.com/a/32241043, modified to work for RS decoding
+ */
 GCDStruct extendedGCDPoly(const int m, const int t, std::vector<uint32_t> a, std::vector<uint32_t> b) {
     if (b.empty() || (b.size() == 1 && b[0] == 0U))
         return {a, {static_cast<uint32_t>(retrieveGFElement(m, 0))}, {0U}};
@@ -123,6 +143,10 @@ GCDStruct extendedGCDPoly(const int m, const int t, std::vector<uint32_t> a, std
     return {rec.gcd, x, y};
 }
 
+/**
+ * Perform polynomial derivative over GF(2) for a polynomial represented as a vector of coefficients.
+ * The derivative is computed by taking the coefficients of the odd degree terms.
+ */
 std::vector<uint32_t> polyDerivative(const std::vector<uint32_t>& poly) {
     std::vector<uint32_t> derivative(poly.size(), 0U);
     for (int i = 1; i < (int)poly.size(); ++i) {
