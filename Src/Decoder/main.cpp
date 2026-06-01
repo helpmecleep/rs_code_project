@@ -16,7 +16,7 @@ struct ErrorPolys {
 // Forward declaration of functions
 std::vector<uint32_t> computeSyndromes(int m, int t, const std::vector<uint32_t>& received);
 ErrorPolys computeErrorPolys(int m, int t, const std::vector<uint32_t>& syndromes);
-std::vector<int> chienSearch (int m, int t, int n, const std::vector<uint32_t>& lambda);
+std::vector<int> findRoots (int m, int t, int n, const std::vector<uint32_t>& lambda);
 std::vector<uint32_t> findErrorMag(int m, int n,
     const std::vector<uint32_t>& omega,const std::vector<uint32_t>& lambda,
     const std::vector<int>& errorPositions);
@@ -46,7 +46,7 @@ int main() {
     // Compute syndromes and error locations and magnitudes
     std::vector<uint32_t> syndromes = computeSyndromes(m, t, received);
     ErrorPolys ep = computeErrorPolys(m, t, syndromes);
-    std::vector<int> errorPositions = chienSearch(m, t, received.size(), ep.lambda);
+    std::vector<int> errorPositions = findRoots(m, t, received.size(), ep.lambda);
     std::vector<uint32_t> errorMags = findErrorMag(m, received.size(), ep.omega, ep.lambda, errorPositions);
 
     // Print error positions and magnitudes
@@ -131,9 +131,9 @@ ErrorPolys computeErrorPolys(int m, int t, const std::vector<uint32_t>& syndrome
  * @brief This function performs the Chien Search to find the error positions.
  * It evaluates the error locator polynomial lambda at the inverses of the field elements.
  * If lambda evaluates to zero at a particular field element, it indicates an error at that position.
- * The positions are returned in terms of the original codeword indexing.
+ * The positions are returned in terms of the original codeword indexing.   
  */
-std::vector<int> chienSearch(int m, int t, int n, const std::vector<uint32_t>& lambda) {
+std::vector<int> findRoots(int m, int t, int n, const std::vector<uint32_t>& lambda) {
     // set up error position vectors
     std::vector<int> errorPositions;
     for (int i = 0; i < (m - 1); i++) {
@@ -200,7 +200,7 @@ std::vector<uint32_t> findErrorMag(int m, int n,
 std::vector<uint32_t> decodeRS(int m, int t, const std::vector<uint32_t>& received) {
     std::vector<uint32_t> syndromes = computeSyndromes(m, t, received);
     ErrorPolys ep = computeErrorPolys(m, t, syndromes);
-    std::vector<int> errorPositions = chienSearch(m, t, received.size(), ep.lambda);
+    std::vector<int> errorPositions = findRoots(m, t, received.size(), ep.lambda);
     std::vector<uint32_t> errorMags = findErrorMag(m, received.size(), ep.omega, ep.lambda, errorPositions);
 
     std::vector<uint32_t> corrected = received;
